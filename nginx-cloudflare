@@ -1,6 +1,5 @@
 #!/usr/bin/python3 -u
 
-
 """ Set client real ip for nginx behind cloudflare
 """
 
@@ -8,7 +7,6 @@ __author__ = "Gena Makhomed"
 __contact__ = "https://github.com/makhomed/nginx-cloudflare"
 __license__ = "GNU General Public License version 3"
 __version__ = "1.0.0"
-
 
 import json
 import os
@@ -18,7 +16,6 @@ import urllib.request
 import uuid
 
 from pathlib import Path
-
 
 NGINX_MASTER_PID_FILENAME = '/var/run/nginx.pid'
 
@@ -63,13 +60,13 @@ class Includes:
                 os.kill(pid, signal.SIGHUP)
 
     def refresh(self):
-        old_cloudflare_inc_content = self.read_file('/etc/nginx/include/cloudflare.inc')
-        old_not_cloudflare_inc_content = self.read_file('/etc/nginx/include/not_cloudflare.inc')
+        old_cloudflare_inc_content = self.read_file('/etc/nginx/include/cloudflare.conf')
+        old_not_cloudflare_inc_content = self.read_file('/etc/nginx/include/not_cloudflare.conf')
         cloudflare_inc_content = '\n'.join([f'set_real_ip_from {cidr};' for cidr in self.cloudflare_subnets] + ['real_ip_header CF-Connecting-IP;'])
         not_cloudflare_inc_content = '\n'.join(['default 1;'] + [f'{cidr} 0;' for cidr in self.cloudflare_subnets])
         if cloudflare_inc_content != old_cloudflare_inc_content or not_cloudflare_inc_content != old_not_cloudflare_inc_content:
-            self.write_file('/etc/nginx/include/cloudflare.inc', cloudflare_inc_content)
-            self.write_file('/etc/nginx/include/not_cloudflare.inc', not_cloudflare_inc_content)
+            self.write_file('/etc/nginx/include/cloudflare.conf', cloudflare_inc_content)
+            self.write_file('/etc/nginx/include/not_cloudflare.conf', not_cloudflare_inc_content)
             self.reload_nginx()
 
 

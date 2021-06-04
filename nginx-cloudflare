@@ -1,0 +1,81 @@
+#!/usr/bin/python3 -u
+
+
+""" Set client real ip for nginx behind cloudflare
+"""
+
+__author__ = "Gena Makhomed"
+__contact__ = "https://github.com/makhomed/nginx-cloudflare"
+__license__ = "GNU General Public License version 3"
+__version__ = "1.0.0"
+
+
+import json
+import os
+import signal
+import sys
+import urllib.request
+import uuid
+
+from pathlib import Path
+
+
+NGINX_MASTER_PID_FILENAME = '/var/run/nginx.pid'
+
+
+class Includes:
+    def __init__(self):
+        self.include_dir = Path('/etc/nginx/include')
+        if not self.include_dir.is_dir():
+            self.include_dir.mkdir(parents=True, exist_ok=True)
+        self.read_cloudflare_subnets()
+
+    def read_cloudflare_subnets(self):
+        with urllib.request.urlopen('https://api.cloudflare.com/client/v4/ips') as f:
+            ips = json.loads(f.read().decode('utf-8'))
+            if not ips['success']:
+                print(ips)
+                sys.exit(1)
+        self.cloudflare_subnets = ips['result']['ipv4_cidrs'] + ips['result']['ipv6_cidrs']
+
+    def read_file(self, filename):
+        if not Path(filename).is_file():
+            return None
+        else:
+            with open(filename) as f:
+                content = f.read()
+                return content
+
+    def write_file(self, filename, content):
+        tmp_filename = filename + '.tmp.' + uuid.uuid4().hex + '.tmp'
+        with open(tmp_filename, 'w') as tmp_file:
+            tmp_file.write(content)
+        os.rename(tmp_filename, filename)
+
+    def reload_nginx(self):
+        if os.path.isfile(NGINX_MASTER_PID_FILENAME):
+            with open(NGINX_MASTER_PID_FILENAME) as pid_file:
+                try:
+                    pid = int(pid_file.readline())
+                except Exception:
+                    pid = 0
+            if pid > 0:
+                os.kill(pid, signal.SIGHUP)
+
+    def refresh(self):
+        old_cloudflare_inc_content = self.read_file('/etc/nginx/include/cloudflare.inc')
+        old_not_cloudflare_inc_content = self.read_file('/etc/nginx/include/not_cloudflare.inc')
+        cloudflare_inc_content = '\n'.join([f'set_real_ip_from {cidr};' for cidr in self.cloudflare_subnets] + ['real_ip_header CF-Connecting-IP;'])
+        not_cloudflare_inc_content = '\n'.join(['default 1;'] + [f'{cidr} 0;' for cidr in self.cloudflare_subnets])
+        if cloudflare_inc_content != old_cloudflare_inc_content or not_cloudflare_inc_content != old_not_cloudflare_inc_content:
+            self.write_file('/etc/nginx/include/cloudflare.inc', cloudflare_inc_content)
+            self.write_file('/etc/nginx/include/not_cloudflare.inc', not_cloudflare_inc_content)
+            self.reload_nginx()
+
+
+def main():
+    Includes().refresh()
+
+
+if __name__ == '__main__':
+    main()

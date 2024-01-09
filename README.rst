@@ -1,11 +1,11 @@
 nginx-cloudflare (version 1.2.0)
 ================================
 
-Set client real IP for nginx behind cloudflare.
+Set client real IP for nginx behind Cloudflare.
 
 Since Cloudflare acts as a reverse proxy, all connections come from one of Cloudflare's IP addresses. Cloudflare includes the originating IP address in the CF-Connecting-IP header.
 
-This script, enabled in the cron, allows automatically maintaining an up-to-date `list of cloudflare ip addresses <https://www.cloudflare.com/ips/>`_ and reloading nginx if these addresses change.
+This script, enabled in the cron, allows automatically maintaining an up-to-date `list of Cloudflare ip addresses <https://www.cloudflare.com/ips/>`_ and reloading nginx if these addresses change.
 
 First block of generated files, ``/etc/nginx/include/cloudflare.conf``, ``/etc/nginx/include/cloudflare_ipv4.conf``, ``/etc/nginx/include/cloudflare_ipv6.conf``, contains settings for nginx realip module, allowing nginx to restore real client IP from the CF-Connecting-IP header.
 

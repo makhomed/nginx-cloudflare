@@ -1,27 +1,52 @@
-#!/usr/bin/python3 -u
+#!/usr/bin/python -u
 
-""" Set client real ip for nginx behind cloudflare
+
+""" Set client real ip for nginx behind Cloudflare
 """
 
-__contact__ = "https://github.com/makhomed/nginx-cloudflare"
-__license__ = "GNU General Public License version 3"
-__version__ = "1.2.0"
 
-# python -m pip install --upgrade-strategy eager --upgrade Jinja2 requests invoke
+__contact__ = 'https://github.com/makhomed/nginx-cloudflare'
+__license__ = 'GNU General Public License version 3'
+__version__ = '1.2.1'
+
 
 # includes {{{
 
-from functools import wraps
-from invoke import run
-from jinja2 import Environment, BaseLoader
-from pathlib import Path
 import ipaddress
 import json
-import requests
 import secrets
 import sys
+from functools import wraps
+from pathlib import Path
+
+from invoke import run
+
+from jinja2 import BaseLoader, Environment
+
+import requests
 
 # }}}
+
+
+# check for valid python version {{{
+
+how_to_install_python_version_3_11 = """
+# how to install Python 3.11 and required packages:
+
+dnf -y remove python-unversioned-command ; \\
+dnf -y install python3.11 python3.11-pip ; \\
+ln -sf /usr/bin/python3.11 /usr/bin/python ; \\
+ln -sf /usr/bin/pip3.11 /usr/bin/pip ; \\
+pip install --no-input --upgrade-strategy eager --upgrade Jinja2 requests invoke
+"""
+
+is_vaid_python_version = sys.version_info.major == 3 and sys.version_info.minor >= 11 or sys.version_info.major > 3
+if not is_vaid_python_version:
+    current_version = f'{sys.version_info.major}.{sys.version_info.minor}'
+    sys.exit(f'\n# FATAL ERROR: Python 3.11+ required, used Python {current_version}\n{how_to_install_python_version_3_11}')
+
+# }}}
+
 
 # atomic_write_text function {{{
 
@@ -33,6 +58,7 @@ def atomic_write_text(content, filename):
     tmp_filename.rename(filename)
 
 # }}}
+
 
 # Cloudflare API {{{
 
@@ -48,38 +74,42 @@ def retry(max_retries=8, min_delay=1, backoff=2, max_delay=128):
                     return func(*args, **kwargs)
                 except Exception as exception:
                     last_exception = exception
+                    import traceback
                     traceback.print_exc()
-                    print(f"\n{retries+1} function call {func.__name__} failed. Will retry after delay {delay} seconds...\n")
+                    print(f'\n{retries+1} function call {func.__name__} failed. Will retry after delay {delay} seconds...\n')
+                    import time
                     time.sleep(delay)
                     delay *= backoff
-                    if delay > max_delay: delay = max_delay
+                    if delay > max_delay:
+                        delay = max_delay
                     retries += 1
             raise last_exception
         return wrapped_function
     return decorator
 
-requests_connect_timeout = 10
-requests_read_timeout = 10
 
 @retry()
 def api_cloudlare_get_ips():
-    url = "https://api.cloudflare.com/client/v4/ips"
-    timeout = ( requests_connect_timeout, requests_read_timeout )
-    headers = { "Accept": "application/json" }
-    params = { "networks": "jdcloud" }
+    requests_connect_timeout = 10
+    requests_read_timeout = 10
+    url = 'https://api.cloudflare.com/client/v4/ips'
+    timeout = (requests_connect_timeout, requests_read_timeout)
+    headers = {'Accept': 'application/json'}
+    params = {'networks': 'jdcloud'}
     r = requests.get(url, params=params, headers=headers, timeout=timeout)
-    assert r.status_code == 200, f"r.status_code == {r.status_code}"
+    assert r.status_code == 200, f'r.status_code == {r.status_code}'
     data = json.loads(r.text)
     success = data['success']
     errors = data['errors']
     messages = data['messages']
     result = data['result']
-    assert success is True, f"success is {success}"
-    assert isinstance(errors, list) and not errors, f"errors is {errors}"
-    assert isinstance(messages, list) and not messages, f"messages is {messages}"
+    assert success is True, f'success is {success}'
+    assert isinstance(errors, list) and not errors, f'errors is {errors}'
+    assert isinstance(messages, list) and not messages, f'messages is {messages}'
     return result
 
 # }}}
+
 
 # set_cloudflare_subnets function {{{
 
@@ -87,6 +117,7 @@ cloudflare_ipv4_subnets = None
 cloudflare_ipv6_subnets = None
 cloudflare_china_ipv4_subnets = None
 cloudflare_china_ipv6_subnets = None
+
 
 def set_cloudflare_subnets():
     global cloudflare_ipv4_subnets
@@ -113,10 +144,12 @@ def set_cloudflare_subnets():
 
 # }}}
 
+
 # set_extra_subnets function {{{
 
 extra_ipv4_subnets = None
 extra_ipv6_subnets = None
+
 
 def set_extra_subnets():
     global extra_ipv4_subnets
@@ -132,6 +165,7 @@ def set_extra_subnets():
         else:
             raise ValueError(f"unexpected '{ip_network}' instance of class {ip_network.__class__.__name__}")
 # }}}
+
 
 # Jinja2 templates {{{
 
@@ -182,21 +216,23 @@ default 1;
 """
 # }}}
 
+
 # main function {{{
 
-inet_conf_filename = Path('/etc/nginx/include/cloudflare.conf')
-ipv4_conf_filename = Path('/etc/nginx/include/cloudflare_ipv4.conf')
-ipv6_conf_filename = Path('/etc/nginx/include/cloudflare_ipv6.conf')
-
-inet_from_filename = Path('/etc/nginx/include/from_cloudflare.conf')
-ipv4_from_filename = Path('/etc/nginx/include/from_cloudflare_ipv4.conf')
-ipv6_from_filename = Path('/etc/nginx/include/from_cloudflare_ipv6.conf')
-
-inet_not_filename = Path('/etc/nginx/include/not_cloudflare.conf')
-ipv4_not_filename = Path('/etc/nginx/include/not_cloudflare_ipv4.conf')
-ipv6_not_filename = Path('/etc/nginx/include/not_cloudflare_ipv6.conf')
-
 def main():
+
+    inet_conf_filename = Path('/etc/nginx/include/cloudflare.conf')
+    ipv4_conf_filename = Path('/etc/nginx/include/cloudflare_ipv4.conf')
+    ipv6_conf_filename = Path('/etc/nginx/include/cloudflare_ipv6.conf')
+
+    inet_from_filename = Path('/etc/nginx/include/from_cloudflare.conf')
+    ipv4_from_filename = Path('/etc/nginx/include/from_cloudflare_ipv4.conf')
+    ipv6_from_filename = Path('/etc/nginx/include/from_cloudflare_ipv6.conf')
+
+    inet_not_filename = Path('/etc/nginx/include/not_cloudflare.conf')
+    ipv4_not_filename = Path('/etc/nginx/include/not_cloudflare_ipv4.conf')
+    ipv6_not_filename = Path('/etc/nginx/include/not_cloudflare_ipv6.conf')
+
     set_extra_subnets()
     set_cloudflare_subnets()
 
@@ -280,14 +316,14 @@ def main():
     )
 
     if (new_inet_conf_content != old_inet_conf_content or
-        new_ipv4_conf_content != old_ipv4_conf_content or
-        new_ipv6_conf_content != old_ipv6_conf_content or
-        new_inet_from_content != old_inet_from_content or
-        new_ipv4_from_content != old_ipv4_from_content or
-        new_ipv6_from_content != old_ipv6_from_content or
-        new_inet_not_content != old_inet_not_content or
-        new_ipv4_not_content != old_ipv4_not_content or
-        new_ipv6_not_content != old_ipv6_not_content):
+            new_ipv4_conf_content != old_ipv4_conf_content or
+            new_ipv6_conf_content != old_ipv6_conf_content or
+            new_inet_from_content != old_inet_from_content or
+            new_ipv4_from_content != old_ipv4_from_content or
+            new_ipv6_from_content != old_ipv6_from_content or
+            new_inet_not_content != old_inet_not_content or
+            new_ipv4_not_content != old_ipv4_not_content or
+            new_ipv6_not_content != old_ipv6_not_content):
         Path('/etc/nginx/include').mkdir(mode=0o755, parents=True, exist_ok=True)
         atomic_write_text(new_inet_conf_content, inet_conf_filename)
         atomic_write_text(new_ipv4_conf_content, ipv4_conf_filename)
@@ -300,5 +336,8 @@ def main():
         atomic_write_text(new_ipv6_not_content, ipv6_not_filename)
         run('systemctl reload nginx')
 
+
 if __name__ == '__main__':
-    main() # }}}
+    main()
+
+# }}}

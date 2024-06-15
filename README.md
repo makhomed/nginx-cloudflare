@@ -1,4 +1,4 @@
-# nginx-cloudflare (version 1.2.1)
+# nginx-cloudflare (version 1.2.3)
 
 Set client real IP for nginx behind Cloudflare.
 
@@ -41,21 +41,19 @@ In this case - `not_cloudflare.conf` files can help to permit only requests from
 
 ## Installation
 > [!IMPORTANT]
-> Python 3.11+ and [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/),
+> Python 3.8+ and [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/),
 > [requests](https://requests.readthedocs.io/),
 > [invoke](https://www.pyinvoke.org/) modules required
 ```
-dnf -y remove python-unversioned-command ; \
-dnf -y install python3.11 python3.11-pip ; \
-ln -sf /usr/bin/python3.11 /usr/bin/python ; \
-ln -sf /usr/bin/pip3.11 /usr/bin/pip ; \
-pip install --no-input --upgrade-strategy eager --upgrade Jinja2 requests invoke ; \
+
+dnf -y install python3 python3-pip python-unversioned-command ; \
+python -m pip install --no-input --upgrade-strategy eager --upgrade Jinja2 requests invoke ; \
 cd /opt ; git clone https://github.com/makhomed/nginx-cloudflare.git
 ```
 
 ## Upgrade
 ```
-pip install --no-input --upgrade-strategy eager --upgrade Jinja2 requests invoke ; \
+python -m pip install --no-input --upgrade-strategy eager --upgrade Jinja2 requests invoke ; \
 cd /opt/nginx-cloudflare ; git pull
 ```
 

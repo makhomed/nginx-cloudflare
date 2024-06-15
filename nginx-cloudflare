@@ -7,7 +7,7 @@
 
 __contact__ = 'https://github.com/makhomed/nginx-cloudflare'
 __license__ = 'GNU General Public License version 3'
-__version__ = '1.2.1'
+__version__ = '1.2.3'
 
 
 # includes {{{
@@ -24,26 +24,6 @@ from invoke import run
 from jinja2 import BaseLoader, Environment
 
 import requests
-
-# }}}
-
-
-# check for valid python version {{{
-
-how_to_install_python_version_3_11 = """
-# how to install Python 3.11 and required packages:
-
-dnf -y remove python-unversioned-command ; \\
-dnf -y install python3.11 python3.11-pip ; \\
-ln -sf /usr/bin/python3.11 /usr/bin/python ; \\
-ln -sf /usr/bin/pip3.11 /usr/bin/pip ; \\
-pip install --no-input --upgrade-strategy eager --upgrade Jinja2 requests invoke
-"""
-
-is_vaid_python_version = sys.version_info.major == 3 and sys.version_info.minor >= 11 or sys.version_info.major > 3
-if not is_vaid_python_version:
-    current_version = f'{sys.version_info.major}.{sys.version_info.minor}'
-    sys.exit(f'\n# FATAL ERROR: Python 3.11+ required, used Python {current_version}\n{how_to_install_python_version_3_11}')
 
 # }}}
 

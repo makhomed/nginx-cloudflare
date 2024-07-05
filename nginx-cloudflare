@@ -1,4 +1,4 @@
-#!/usr/bin/python -u
+#!/usr/bin/python3 -u
 
 
 """ Set client real ip for nginx behind Cloudflare
@@ -7,7 +7,7 @@
 
 __contact__ = 'https://github.com/makhomed/nginx-cloudflare'
 __license__ = 'GNU General Public License version 3'
-__version__ = '1.2.3'
+__version__ = '1.2.4'
 
 
 # includes {{{

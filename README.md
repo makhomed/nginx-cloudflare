@@ -2,9 +2,9 @@
 
 Sets the client's real IP in nginx behind Cloudflare.
 
-Since Cloudflare acts as a reverse proxy, all connections appear to come from Cloudflare IP addresses. Cloudflare provides the original client IP address in the [X-Forwarded-For](https://developers.cloudflare.com/fundamentals/reference/http-headers/#x-forwarded-for) and [CF-Connecting-IP](https://developers.cloudflare.com/fundamentals/reference/http-request-headers/#cf-connecting-ip) headers. This script, when enabled via the cron for regular execution, automatically maintains an up-to-date [list of Cloudflare IP addresses](https://www.cloudflare.com/ips/) and reloads nginx if these addresses are changed after update.
+Since Cloudflare acts as a reverse proxy, all connections appear to come from Cloudflare IP addresses. Cloudflare includes the original client IP address in the [X-Forwarded-For](https://developers.cloudflare.com/fundamentals/reference/http-headers/#x-forwarded-for) and [CF-Connecting-IP](https://developers.cloudflare.com/fundamentals/reference/http-request-headers/#cf-connecting-ip) headers. This script, when enabled to run via cron, automatically maintains an up-to-date [list of Cloudflare IP addresses](https://www.cloudflare.com/ips/) and reloads nginx if these addresses change after an update.
 
-The file `/etc/nginx/include/cloudflare_set_realip_from.conf` contains an auto-generated set of [set_real_ip_from](https://nginx.org/en/docs/http/ngx_http_realip_module.html#set_real_ip_from) directives for Cloudflare IP ranges. The file `/etc/nginx/include/cloudflare_not_deny_access.conf` contains an auto-generated fragment for the [nginx geo module](https://nginx.org/en/docs/http/ngx_http_geo_module.html), which allows nginx to block all non-Cloudflare IP addresses, by using the `if` directive from the [nginx rewrite module](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html).
+The file `/etc/nginx/include/cloudflare_set_realip_from.conf` contains an auto-generated set of [set_real_ip_from](https://nginx.org/en/docs/http/ngx_http_realip_module.html#set_real_ip_from) directives for Cloudflare IP ranges. The file `/etc/nginx/include/cloudflare_not_deny_access.conf` contains an auto-generated fragment for the [nginx geo module](https://nginx.org/en/docs/http/ngx_http_geo_module.html) which allows nginx to block all non-Cloudflare IP addresses, using the `if` directive from the [nginx rewrite module](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html).
 
 ## Installation
 
@@ -42,7 +42,7 @@ RANDOM_DELAY=60
 
 ## nginx configuration in the `http` context
 
-The most simple configuration, when only Cloudflare is used:
+The simplest configuration, when only Cloudflare is used:
 
 ```nginx
 include /etc/nginx/include/cloudflare_set_realip_from.conf;

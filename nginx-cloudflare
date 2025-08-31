@@ -1,16 +1,14 @@
 #!/usr/bin/python3 -u
 
-
 """ Set client real ip for nginx behind Cloudflare
 """
 
-
 __contact__ = 'https://github.com/makhomed/nginx-cloudflare'
-__license__ = 'GNU General Public License version 3'
-__version__ = '1.2.4'
+__license__ = "GNU Affero General Public License, version 3.0 or later"
+__version__ = "2.0.0"
 
 
-# includes {{{
+# imports {{{
 
 import ipaddress
 import json
@@ -27,18 +25,13 @@ import requests
 
 # }}}
 
-
-# atomic_write_text function {{{
-
-def atomic_write_text(content, filename):
+def atomic_write_text(content, filename): # {{{
     assert isinstance(content, str)
     assert isinstance(filename, Path)
     tmp_filename = filename.with_name(filename.name + '.tmp.' + secrets.token_hex() + '.tmp')
     tmp_filename.write_text(content)
     tmp_filename.rename(filename)
-
 # }}}
-
 
 # Cloudflare API {{{
 
@@ -67,7 +60,6 @@ def retry(max_retries=8, min_delay=1, backoff=2, max_delay=128):
         return wrapped_function
     return decorator
 
-
 @retry()
 def api_cloudlare_get_ips():
     requests_connect_timeout = 10
@@ -87,9 +79,7 @@ def api_cloudlare_get_ips():
     assert isinstance(errors, list) and not errors, f'errors is {errors}'
     assert isinstance(messages, list) and not messages, f'messages is {messages}'
     return result
-
 # }}}
-
 
 # set_cloudflare_subnets function {{{
 
@@ -97,7 +87,6 @@ cloudflare_ipv4_subnets = None
 cloudflare_ipv6_subnets = None
 cloudflare_china_ipv4_subnets = None
 cloudflare_china_ipv6_subnets = None
-
 
 def set_cloudflare_subnets():
     global cloudflare_ipv4_subnets
@@ -121,46 +110,16 @@ def set_cloudflare_subnets():
             cloudflare_china_ipv6_subnets.append(ip_network)
         else:
             raise ValueError(f"unexpected '{ip_network}' instance of class {ip_network.__class__.__name__}")
-
 # }}}
-
-
-# set_extra_subnets function {{{
-
-extra_ipv4_subnets = None
-extra_ipv6_subnets = None
-
-
-def set_extra_subnets():
-    global extra_ipv4_subnets
-    global extra_ipv6_subnets
-    extra_ipv4_subnets = list()
-    extra_ipv6_subnets = list()
-    for extra_cidr in sys.argv[1:]:
-        ip_network = ipaddress.ip_network(extra_cidr, strict=True)
-        if isinstance(ip_network, ipaddress.IPv4Network):
-            extra_ipv4_subnets.append(ip_network)
-        elif isinstance(ip_network, ipaddress.IPv6Network):
-            extra_ipv6_subnets.append(ip_network)
-        else:
-            raise ValueError(f"unexpected '{ip_network}' instance of class {ip_network.__class__.__name__}")
-# }}}
-
 
 # Jinja2 templates {{{
 
-cloudflare_conf = """\
-{% for extra_ipv4_subnet in extra_ipv4_subnets %}
-set_real_ip_from {{ extra_ipv4_subnet }};
-{% endfor %}
+template_cloudflare_set_realip_from_conf = """\
 {% for cloudflare_ipv4_subnet in cloudflare_ipv4_subnets %}
 set_real_ip_from {{ cloudflare_ipv4_subnet }};
 {% endfor %}
 {% for cloudflare_china_ipv4_subnet in cloudflare_china_ipv4_subnets %}
 set_real_ip_from {{ cloudflare_china_ipv4_subnet }};
-{% endfor %}
-{% for extra_ipv6_subnet in extra_ipv6_subnets %}
-set_real_ip_from {{ extra_ipv6_subnet }};
 {% endfor %}
 {% for cloudflare_ipv6_subnet in cloudflare_ipv6_subnets %}
 set_real_ip_from {{ cloudflare_ipv6_subnet }};
@@ -168,24 +127,15 @@ set_real_ip_from {{ cloudflare_ipv6_subnet }};
 {% for cloudflare_china_ipv6_subnet in cloudflare_china_ipv6_subnets %}
 set_real_ip_from {{ cloudflare_china_ipv6_subnet }};
 {% endfor %}
-{% if include_real_ip_header %}
-real_ip_header CF-Connecting-IP;
-{% endif %}
 """
 
-not_cloudflare_conf = """\
+template_cloudflare_not_deny_access_conf = """\
 default 1;
-{% for extra_ipv4_subnet in extra_ipv4_subnets %}
-{{ extra_ipv4_subnet }} 0;
-{% endfor %}
 {% for cloudflare_ipv4_subnet in cloudflare_ipv4_subnets %}
 {{ cloudflare_ipv4_subnet }} 0;
 {% endfor %}
 {% for cloudflare_china_ipv4_subnet in cloudflare_china_ipv4_subnets %}
 {{ cloudflare_china_ipv4_subnet }} 0;
-{% endfor %}
-{% for extra_ipv6_subnet in extra_ipv6_subnets %}
-{{ extra_ipv6_subnet }} 0;
 {% endfor %}
 {% for cloudflare_ipv6_subnet in cloudflare_ipv6_subnets %}
 {{ cloudflare_ipv6_subnet }} 0;
@@ -196,128 +146,39 @@ default 1;
 """
 # }}}
 
+def main(): # {{{
 
-# main function {{{
-
-def main():
-
-    inet_conf_filename = Path('/etc/nginx/include/cloudflare.conf')
-    ipv4_conf_filename = Path('/etc/nginx/include/cloudflare_ipv4.conf')
-    ipv6_conf_filename = Path('/etc/nginx/include/cloudflare_ipv6.conf')
-
-    inet_from_filename = Path('/etc/nginx/include/from_cloudflare.conf')
-    ipv4_from_filename = Path('/etc/nginx/include/from_cloudflare_ipv4.conf')
-    ipv6_from_filename = Path('/etc/nginx/include/from_cloudflare_ipv6.conf')
-
-    inet_not_filename = Path('/etc/nginx/include/not_cloudflare.conf')
-    ipv4_not_filename = Path('/etc/nginx/include/not_cloudflare_ipv4.conf')
-    ipv6_not_filename = Path('/etc/nginx/include/not_cloudflare_ipv6.conf')
-
-    set_extra_subnets()
     set_cloudflare_subnets()
-
     environment = Environment(loader=BaseLoader(), keep_trailing_newline=True, trim_blocks=True, lstrip_blocks=True)
-    cloudflare_conf_template = environment.from_string(cloudflare_conf)
-    not_cloudflare_conf_template = environment.from_string(not_cloudflare_conf)
 
-    old_inet_conf_content = inet_conf_filename.read_text() if inet_conf_filename.is_file() else None
-    new_inet_conf_content = cloudflare_conf_template.render(
-        extra_ipv4_subnets=extra_ipv4_subnets,
+    cloudflare_set_realip_from_conf_template = environment.from_string(template_cloudflare_set_realip_from_conf)
+    cloudflare_not_deny_access_conf_template = environment.from_string(template_cloudflare_not_deny_access_conf)
+
+    cloudflare_set_realip_from_conf_filename = Path('/etc/nginx/include/cloudflare_set_realip_from.conf')
+    cloudflare_not_deny_access_conf_filename = Path('/etc/nginx/include/cloudflare_not_deny_access.conf')
+
+    old_cloudflare_set_realip_from_conf_content = cloudflare_set_realip_from_conf_filename.read_text() if cloudflare_set_realip_from_conf_filename.is_file() else None
+    new_cloudflare_set_realip_from_conf_content = cloudflare_set_realip_from_conf_template.render(
         cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
         cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
-        extra_ipv6_subnets=extra_ipv6_subnets,
-        cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
-        cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
-        include_real_ip_header=True
-    )
-
-    old_ipv4_conf_content = ipv4_conf_filename.read_text() if ipv4_conf_filename.is_file() else None
-    new_ipv4_conf_content = cloudflare_conf_template.render(
-        extra_ipv4_subnets=extra_ipv4_subnets,
-        cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
-        cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
-        include_real_ip_header=True
-    )
-
-    old_ipv6_conf_content = ipv6_conf_filename.read_text() if ipv6_conf_filename.is_file() else None
-    new_ipv6_conf_content = cloudflare_conf_template.render(
-        extra_ipv6_subnets=extra_ipv6_subnets,
-        cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
-        cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
-        include_real_ip_header=True
-    )
-
-    old_inet_from_content = inet_from_filename.read_text() if inet_from_filename.is_file() else None
-    new_inet_from_content = cloudflare_conf_template.render(
-        extra_ipv4_subnets=extra_ipv4_subnets,
-        cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
-        cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
-        extra_ipv6_subnets=extra_ipv6_subnets,
         cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
         cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
     )
 
-    old_ipv4_from_content = ipv4_from_filename.read_text() if ipv4_from_filename.is_file() else None
-    new_ipv4_from_content = cloudflare_conf_template.render(
-        extra_ipv4_subnets=extra_ipv4_subnets,
+    old_cloudflare_not_deny_access_conf_content = cloudflare_not_deny_access_conf_filename.read_text() if cloudflare_not_deny_access_conf_filename.is_file() else None
+    new_cloudflare_not_deny_access_conf_content = cloudflare_not_deny_access_conf_template.render(
         cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
         cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
-    )
-
-    old_ipv6_from_content = ipv6_from_filename.read_text() if ipv6_from_filename.is_file() else None
-    new_ipv6_from_content = cloudflare_conf_template.render(
-        extra_ipv6_subnets=extra_ipv6_subnets,
         cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
         cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
     )
 
-    old_inet_not_content = inet_not_filename.read_text() if inet_not_filename.is_file() else None
-    new_inet_not_content = not_cloudflare_conf_template.render(
-        extra_ipv4_subnets=extra_ipv4_subnets,
-        cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
-        cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
-        extra_ipv6_subnets=extra_ipv6_subnets,
-        cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
-        cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
-    )
-
-    old_ipv4_not_content = ipv4_not_filename.read_text() if ipv4_not_filename.is_file() else None
-    new_ipv4_not_content = not_cloudflare_conf_template.render(
-        extra_ipv4_subnets=extra_ipv4_subnets,
-        cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
-        cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
-    )
-
-    old_ipv6_not_content = ipv6_not_filename.read_text() if ipv6_not_filename.is_file() else None
-    new_ipv6_not_content = not_cloudflare_conf_template.render(
-        extra_ipv6_subnets=extra_ipv6_subnets,
-        cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
-        cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
-    )
-
-    if (new_inet_conf_content != old_inet_conf_content or
-            new_ipv4_conf_content != old_ipv4_conf_content or
-            new_ipv6_conf_content != old_ipv6_conf_content or
-            new_inet_from_content != old_inet_from_content or
-            new_ipv4_from_content != old_ipv4_from_content or
-            new_ipv6_from_content != old_ipv6_from_content or
-            new_inet_not_content != old_inet_not_content or
-            new_ipv4_not_content != old_ipv4_not_content or
-            new_ipv6_not_content != old_ipv6_not_content):
+    if old_cloudflare_set_realip_from_conf_content != new_cloudflare_set_realip_from_conf_content\
+    or old_cloudflare_not_deny_access_conf_content != new_cloudflare_not_deny_access_conf_content:
         Path('/etc/nginx/include').mkdir(mode=0o755, parents=True, exist_ok=True)
-        atomic_write_text(new_inet_conf_content, inet_conf_filename)
-        atomic_write_text(new_ipv4_conf_content, ipv4_conf_filename)
-        atomic_write_text(new_ipv6_conf_content, ipv6_conf_filename)
-        atomic_write_text(new_inet_from_content, inet_from_filename)
-        atomic_write_text(new_ipv4_from_content, ipv4_from_filename)
-        atomic_write_text(new_ipv6_from_content, ipv6_from_filename)
-        atomic_write_text(new_inet_not_content, inet_not_filename)
-        atomic_write_text(new_ipv4_not_content, ipv4_not_filename)
-        atomic_write_text(new_ipv6_not_content, ipv6_not_filename)
+        atomic_write_text(new_cloudflare_set_realip_from_conf_content, cloudflare_set_realip_from_conf_filename)
+        atomic_write_text(new_cloudflare_not_deny_access_conf_content, cloudflare_not_deny_access_conf_filename)
         run('systemctl reload nginx')
 
-
 if __name__ == '__main__':
-    main()
-
-# }}}
+    main() # }}}

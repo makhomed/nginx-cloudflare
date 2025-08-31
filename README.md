@@ -1,4 +1,4 @@
-# nginx-cloudflare (version 1.2.4)
+# nginx-cloudflare (version 2.0.0)
 
 Set client real IP for nginx behind Cloudflare.
 

@@ -42,16 +42,25 @@ RANDOM_DELAY=60
 
 ## nginx configuration in `http` context
 
-```
-include /etc/nginx/include/cloudflare_set_realip_from.conf;
-real_ip_header X-Forwarded-For;
-real_ip_recursive on;
-```
+Most simple configuration, when only Cloudflare is used:
 
 ```
 include /etc/nginx/include/cloudflare_set_realip_from.conf;
 real_ip_header CF-Connecting-IP;
 ```
+
+More comprex configuration, when multiple CDN / DDoS protection services are used:
+
+```
+include /etc/nginx/include/cloudflare_set_realip_from.conf;
+include /etc/nginx/include/other_cdn_set_realip_from.conf;
+include /etc/nginx/include/other_service_set_realip_from.conf;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+```
+
+If need `$request_not_from_cloudflare` variable, create it:
+
 
 ```
 geo $realip_remote_addr $request_not_from_cloudflare {

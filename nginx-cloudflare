@@ -114,7 +114,7 @@ def set_cloudflare_subnets():
 
 # Jinja2 templates {{{
 
-template_cloudflare_set_realip_from_conf = """\
+template_cloudflare_set_real_ip_from_conf = """\
 {% for cloudflare_ipv4_subnet in cloudflare_ipv4_subnets %}
 set_real_ip_from {{ cloudflare_ipv4_subnet }};
 {% endfor %}
@@ -129,7 +129,7 @@ set_real_ip_from {{ cloudflare_china_ipv6_subnet }};
 {% endfor %}
 """
 
-template_cloudflare_not_deny_access_conf = """\
+template_cloudflare_not_block_access_conf = """\
 default 1;
 {% for cloudflare_ipv4_subnet in cloudflare_ipv4_subnets %}
 {{ cloudflare_ipv4_subnet }} 0;
@@ -151,33 +151,33 @@ def main(): # {{{
     set_cloudflare_subnets()
     environment = Environment(loader=BaseLoader(), keep_trailing_newline=True, trim_blocks=True, lstrip_blocks=True)
 
-    cloudflare_set_realip_from_conf_template = environment.from_string(template_cloudflare_set_realip_from_conf)
-    cloudflare_not_deny_access_conf_template = environment.from_string(template_cloudflare_not_deny_access_conf)
+    cloudflare_set_real_ip_from_conf_template = environment.from_string(template_cloudflare_set_real_ip_from_conf)
+    cloudflare_not_block_access_conf_template = environment.from_string(template_cloudflare_not_block_access_conf)
 
-    cloudflare_set_realip_from_conf_filename = Path('/etc/nginx/include/cloudflare_set_realip_from.conf')
-    cloudflare_not_deny_access_conf_filename = Path('/etc/nginx/include/cloudflare_not_deny_access.conf')
+    cloudflare_set_real_ip_from_conf_filename = Path('/etc/nginx/include/cloudflare_set_real_ip_from.conf')
+    cloudflare_not_block_access_conf_filename = Path('/etc/nginx/include/cloudflare_not_block_access.conf')
 
-    old_cloudflare_set_realip_from_conf_content = cloudflare_set_realip_from_conf_filename.read_text() if cloudflare_set_realip_from_conf_filename.is_file() else None
-    new_cloudflare_set_realip_from_conf_content = cloudflare_set_realip_from_conf_template.render(
+    old_cloudflare_set_real_ip_from_conf_content = cloudflare_set_real_ip_from_conf_filename.read_text() if cloudflare_set_real_ip_from_conf_filename.is_file() else None
+    new_cloudflare_set_real_ip_from_conf_content = cloudflare_set_real_ip_from_conf_template.render(
         cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
         cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
         cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
         cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
     )
 
-    old_cloudflare_not_deny_access_conf_content = cloudflare_not_deny_access_conf_filename.read_text() if cloudflare_not_deny_access_conf_filename.is_file() else None
-    new_cloudflare_not_deny_access_conf_content = cloudflare_not_deny_access_conf_template.render(
+    old_cloudflare_not_block_access_conf_content = cloudflare_not_block_access_conf_filename.read_text() if cloudflare_not_block_access_conf_filename.is_file() else None
+    new_cloudflare_not_block_access_conf_content = cloudflare_not_block_access_conf_template.render(
         cloudflare_ipv4_subnets=cloudflare_ipv4_subnets,
         cloudflare_china_ipv4_subnets=cloudflare_china_ipv4_subnets,
         cloudflare_ipv6_subnets=cloudflare_ipv6_subnets,
         cloudflare_china_ipv6_subnets=cloudflare_china_ipv6_subnets,
     )
 
-    if old_cloudflare_set_realip_from_conf_content != new_cloudflare_set_realip_from_conf_content\
-    or old_cloudflare_not_deny_access_conf_content != new_cloudflare_not_deny_access_conf_content:
+    if old_cloudflare_set_real_ip_from_conf_content != new_cloudflare_set_real_ip_from_conf_content\
+    or old_cloudflare_not_block_access_conf_content != new_cloudflare_not_block_access_conf_content:
         Path('/etc/nginx/include').mkdir(mode=0o755, parents=True, exist_ok=True)
-        atomic_write_text(new_cloudflare_set_realip_from_conf_content, cloudflare_set_realip_from_conf_filename)
-        atomic_write_text(new_cloudflare_not_deny_access_conf_content, cloudflare_not_deny_access_conf_filename)
+        atomic_write_text(new_cloudflare_set_real_ip_from_conf_content, cloudflare_set_real_ip_from_conf_filename)
+        atomic_write_text(new_cloudflare_not_block_access_conf_content, cloudflare_not_block_access_conf_filename)
         run('systemctl reload nginx')
 
 if __name__ == '__main__':
